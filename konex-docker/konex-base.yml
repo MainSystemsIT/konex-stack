@@ -1,0 +1,82 @@
+version: "3.9"
+
+services:
+  app:
+    image: mainsystemsit/konex-crm:latest
+    container_name: konex-crm
+    restart: unless-stopped
+    environment:
+      # Ambiente de execução
+      RAILS_ENV: production
+
+      # ===============================================
+      # 🗄️ Banco de Dados (PgVector / PostgreSQL)
+      # ===============================================
+      # Exemplo: postgres://postgres:senha_pgvector@pgvector:5432/konex_crm
+      DATABASE_URL: postgres://USUARIO_DO_BANCO:SENHA_DO_BANCO@pgvector:5432/konex_crm
+
+      # ===============================================
+      # 💾 Redis (para cache e filas do Sidekiq)
+      # ===============================================
+      # Exemplo: redis://default:senha@redis:6379/8
+      REDIS_URL: redis://default:SENHA_DO_REDIS@IP_DO_REDIS:6379/8
+
+      # ===============================================
+      # ⚙️ Configurações gerais da aplicação
+      # ===============================================
+      FRONTEND_URL: "https://konex.mainsystemsit.com.br"   # URL do frontend
+      GOOD_JOB_EXECUTION_MODE: "external"
+      LANGUAGE: "pt-BR"
+      SWAGGER_ENABLED: "true"
+
+      # ===============================================
+      # 🔐 Acesso ao painel Motor Admin
+      # ===============================================
+      MOTOR_AUTH_USERNAME: "admin"
+      MOTOR_AUTH_PASSWORD: "Mudar@123"
+
+      # ===============================================
+      # 🚫 Controle de cadastro
+      # ===============================================
+      ENABLE_USER_SIGNUP: "false"
+      DEFAULT_TIMEZONE: "Brasilia"
+
+    # Labels do Traefik (reverso proxy)
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.konex.rule=Host(`konex.mainsystemsit.com.br`)"
+      - "traefik.http.routers.konex.entrypoints=websecure"
+      - "traefik.http.routers.konex.tls.certresolver=letsencryptresolver"
+      - "traefik.http.services.konex.loadbalancer.server.port=3000"
+
+      # Redirecionamento HTTP -> HTTPS
+      - "traefik.http.routers.konex-http.rule=Host(`konex.mainsystemsit.com.br`)"
+      - "traefik.http.routers.konex-http.entrypoints=web"
+      - "traefik.http.routers.konex-http.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+
+    ports:
+      - "5005:3000"     # Opcional: apenas se quiser acesso local sem Traefik
+    networks:
+      - nome_rede_interna
+
+  sidekiq:
+    image: mainsystemsit/konex-crm:latest
+    container_name: konex-sidekiq
+    restart: unless-stopped
+    command: bundle exec sidekiq
+    environment:
+      RAILS_ENV: production
+      DATABASE_URL: postgres://USUARIO_DO_BANCO:SENHA_DO_BANCO@pgvector:5432/konex_crm
+      REDIS_URL: redis://default:SENHA_DO_REDIS@IP_DO_REDIS:6379/8
+      GOOD_JOB_EXECUTION_MODE: external
+      LANGUAGE: "pt-BR"
+      DEFAULT_TIMEZONE: "Brasilia"
+    networks:
+      - nome_rede_interna
+
+networks:
+  nome_rede_interna:
+    external: true
+    attachable: true

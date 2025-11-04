@@ -1,0 +1,58 @@
+version: "3.7"
+
+services:
+  app:
+    image: mainsystemsit/konex-crm:latest
+    environment:
+      RAILS_ENV: production
+      DATABASE_URL: postgres://postgres:senha_pgvector@pgvector:5432/konex_crm
+      REDIS_URL: redis://default:SENHA_DO_REDIS@IP_DO_REDIS:6379/8
+      FRONTEND_URL: "https://konex.mainsystemsit.com.br"
+      GOOD_JOB_EXECUTION_MODE: "external"
+      LANGUAGE: "pt-BR"
+      SWAGGER_ENABLED: "true"
+      ENABLE_USER_SIGNUP: "false"
+      DEFAULT_TIMEZONE: "Brasilia"
+      MOTOR_AUTH_USERNAME: "admin"
+      MOTOR_AUTH_PASSWORD: "Mudar@123"
+
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.konex.rule=Host(`konex.mainsystemsit.com.br`)"
+        - "traefik.http.routers.konex.entrypoints=websecure"
+        - "traefik.http.routers.konex.tls.certresolver=letsencryptresolver"
+        - "traefik.http.services.konex.loadbalancer.server.port=3000"
+        - "traefik.http.routers.konex-http.rule=Host(`konex.mainsystemsit.com.br`)"
+        - "traefik.http.routers.konex-http.entrypoints=web"
+        - "traefik.http.routers.konex-http.middlewares=redirect-to-https"
+        - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+        - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+
+    networks:
+      - nome_rede_interna
+
+  sidekiq:
+    image: mainsystemsit/konex-crm:latest
+    command: bundle exec sidekiq
+    environment:
+      RAILS_ENV: production
+      DATABASE_URL: postgres://postgres:senha_pgvector@pgvector:5432/konex_crm
+      REDIS_URL: redis://default:SENHA_DO_REDIS@IP_DO_REDIS:6379/8
+      GOOD_JOB_EXECUTION_MODE: external
+      LANGUAGE: "pt-BR"
+      DEFAULT_TIMEZONE: "Brasilia"
+    deploy:
+      restart_policy:
+        condition: on-failure
+    networks:
+      - nome_rede_interna
+
+networks:
+  nome_rede_interna:
+    external: true
+    attachable: true
+    name: nome_rede_interna

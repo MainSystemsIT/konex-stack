@@ -1,0 +1,41 @@
+version: "3.7"
+
+services:
+  redis:
+    image: redis:7.4.2           # Versão oficial e estável do Redis
+    command:
+      [
+        "redis-server",
+        "--appendonly", "yes",   # Ativa persistência em disco (AOF)
+        "--save", "60", "1",     # Faz snapshot a cada 60s se houver pelo menos 1 mudança
+        "--maxmemory-policy", "allkeys-lru",  # Estratégia de descarte se atingir limite
+        "--port", "6379"
+      ]
+    volumes:
+      - redis_data:/data
+    networks:
+      - nome_rede_interna
+    # Descomente para acesso externo via IP:6379 (não recomendado em produção)
+    # ports:
+    #   - 6379:6379
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2048M
+
+volumes:
+  redis_data:
+    external: true
+    name: redis_data
+
+networks:
+  nome_rede_interna:
+    external: true
+    attachable: true
+    name: nome_rede_interna
