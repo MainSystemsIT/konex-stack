@@ -1,82 +1,61 @@
-version: "3.9"
+version: "3.7"
 
 services:
-  app:
-    image: mainsystemsit/konex-crm:latest
-    container_name: konex-crm
-    restart: unless-stopped
+  konex-app:
+    image: konex/konex-crm:latest
+    container_name: konex-app
+    restart: on-failure
+    ports:
+      - "3000:3000" # acesso via http://localhost:3000
     environment:
-      # Ambiente de execução
+      # =====================
+      # AMBIENTE
+      # =====================
       RAILS_ENV: production
-
-      # ===============================================
-      # 🗄️ Banco de Dados (PgVector / PostgreSQL)
-      # ===============================================
-      # Exemplo: postgres://postgres:senha_pgvector@pgvector:5432/konex_crm
-      DATABASE_URL: postgres://USUARIO_DO_BANCO:SENHA_DO_BANCO@pgvector:5432/konex_crm
-
-      # ===============================================
-      # 💾 Redis (para cache e filas do Sidekiq)
-      # ===============================================
-      # Exemplo: redis://default:senha@redis:6379/8
-      REDIS_URL: redis://default:SENHA_DO_REDIS@IP_DO_REDIS:6379/8
-
-      # ===============================================
-      # ⚙️ Configurações gerais da aplicação
-      # ===============================================
-      FRONTEND_URL: "https://konex.mainsystemsit.com.br"   # URL do frontend
-      GOOD_JOB_EXECUTION_MODE: "external"
+      TZ: America/Sao_Paulo
       LANGUAGE: "pt-BR"
+      DEFAULT_TIMEZONE: "America/Sao_Paulo"
+
+      # =====================
+      # BANCO DE DADOS
+      # =====================
+      DATABASE_URL: postgres://POSTGRES_USER:POSTGRES_PASSWORD@POSTGRES_HOST:5432/konex_crm
+
+      # =====================
+      # REDIS
+      # =====================
+      REDIS_URL: redis://REDIS_USER:REDIS_PASSWORD@REDIS_HOST:6379/0
+
+      # =====================
+      # KONEX – CONFIGURAÇÕES
+      # =====================
+      FRONTEND_URL: "https://konex.seudominio.com"
+      GOOD_JOB_EXECUTION_MODE: "external"
+
+      ENABLE_USER_SIGNUP: "false"
       SWAGGER_ENABLED: "true"
 
-      # ===============================================
-      # 🔐 Acesso ao painel Motor Admin
-      # ===============================================
+      # =====================
+      # MOTOR ADMIN
+      # =====================
       MOTOR_AUTH_USERNAME: "admin"
-      MOTOR_AUTH_PASSWORD: "Mudar@123"
+      MOTOR_AUTH_PASSWORD: "MUDAR_SENHA"
 
-      # ===============================================
-      # 🚫 Controle de cadastro
-      # ===============================================
-      ENABLE_USER_SIGNUP: "false"
-      DEFAULT_TIMEZONE: "Brasilia"
+    depends_on:
+      - konex-worker
 
-    # Labels do Traefik (reverso proxy)
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.konex.rule=Host(`konex.mainsystemsit.com.br`)"
-      - "traefik.http.routers.konex.entrypoints=websecure"
-      - "traefik.http.routers.konex.tls.certresolver=letsencryptresolver"
-      - "traefik.http.services.konex.loadbalancer.server.port=3000"
-
-      # Redirecionamento HTTP -> HTTPS
-      - "traefik.http.routers.konex-http.rule=Host(`konex.mainsystemsit.com.br`)"
-      - "traefik.http.routers.konex-http.entrypoints=web"
-      - "traefik.http.routers.konex-http.middlewares=redirect-to-https"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
-
-    ports:
-      - "5005:3000"     # Opcional: apenas se quiser acesso local sem Traefik
-    networks:
-      - nome_rede_interna
-
-  sidekiq:
-    image: mainsystemsit/konex-crm:latest
-    container_name: konex-sidekiq
-    restart: unless-stopped
+  konex-worker:
+    image: konex/konex-crm:latest
+    container_name: konex-worker
     command: bundle exec sidekiq
+    restart: on-failure
     environment:
       RAILS_ENV: production
-      DATABASE_URL: postgres://USUARIO_DO_BANCO:SENHA_DO_BANCO@pgvector:5432/konex_crm
-      REDIS_URL: redis://default:SENHA_DO_REDIS@IP_DO_REDIS:6379/8
-      GOOD_JOB_EXECUTION_MODE: external
+      TZ: America/Sao_Paulo
       LANGUAGE: "pt-BR"
-      DEFAULT_TIMEZONE: "Brasilia"
-    networks:
-      - nome_rede_interna
+      DEFAULT_TIMEZONE: "America/Sao_Paulo"
 
-networks:
-  nome_rede_interna:
-    external: true
-    attachable: true
+      DATABASE_URL: postgres://POSTGRES_USER:POSTGRES_PASSWORD@POSTGRES_HOST:5432/konex_crm
+      REDIS_URL: redis://REDIS_USER:REDIS_PASSWORD@REDIS_HOST:6379/0
+
+      GOOD_JOB_EXECUTION_MODE: external
